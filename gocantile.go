@@ -7,14 +7,12 @@ import (
 	"github.com/hafenkran/gocantile/tms"
 )
 
-// Re-export data model types (except TileMatrixSet, which is wrapped with helpers).
+// Re-export tms
 type (
 	TileMatrixLimits = tms.TileMatrixLimits
-	A2DPoint         = tms.A2DPoint
-	A2DBoundingBox   = tms.A2DBoundingBox
 )
 
-// Re-export grid adapter and helpers.
+// Re-export grid
 type (
 	TileMatrix    = grid.TileMatrix
 	TileIndex     = grid.TileIndex

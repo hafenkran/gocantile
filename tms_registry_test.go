@@ -1,6 +1,9 @@
 package gocantile
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestRegistryLoad(t *testing.T) {
 	names := AvailableTileMatrixSets()
@@ -29,6 +32,23 @@ func TestRegistryLoad(t *testing.T) {
 func TestRegistryLoadMissing(t *testing.T) {
 	if _, err := LoadTileMatrixSet("does-not-exist"); err == nil {
 		t.Fatalf("expected error for missing entry")
+	}
+}
+
+func TestRegistryLoadUnmarshalError(t *testing.T) {
+	const name = "Broken"
+	orig, had := embeddedTMSMap[name]
+	embeddedTMSMap[name] = []byte(`{invalid json`)
+	defer func() {
+		if had {
+			embeddedTMSMap[name] = orig
+		} else {
+			delete(embeddedTMSMap, name)
+		}
+	}()
+
+	if _, err := LoadTileMatrixSet(name); err == nil || !strings.Contains(err.Error(), "failed to unmarshal") {
+		t.Fatalf("expected unmarshal error, got: %v", err)
 	}
 }
 

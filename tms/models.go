@@ -6,6 +6,4 @@ type (
 	TileMatrixSet    = TileMatrixSetJson
 	TileMatrix       = TileMatrixJson
 	TileMatrixLimits = TileMatrixLimitsJson
-	A2DPoint         = A2DPointJson
-	A2DBoundingBox   = A2DBoundingBoxJson
 )

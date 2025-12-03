@@ -207,3 +207,67 @@ func TestTileMatrixSetTilesForGeometryZoom11(t *testing.T) {
 		}
 	}
 }
+
+func TestTileMatrixSetEmptyErrors(t *testing.T) {
+	empty := &TileMatrixSet{}
+
+	if min := empty.MinZoom(); min != 0 {
+		t.Fatalf("expected min zoom 0 for empty, got %d", min)
+	}
+	if max := empty.MaxZoom(); max != 0 {
+		t.Fatalf("expected max zoom 0 for empty, got %d", max)
+	}
+	if _, err := empty.ZoomForResolution(1, 0); err == nil {
+		t.Fatalf("expected error for zoom for resolution without matrices")
+	}
+	if _, err := empty.XYBBox(); err == nil {
+		t.Fatalf("expected error for bbox without matrices")
+	}
+}
+
+func TestTileMatrixSetOutOfRangeErrors(t *testing.T) {
+	tms := loadWebMercatorQuad(t)
+
+	if _, err := tms.ResolutionForZoom(-1); err == nil {
+		t.Fatalf("expected resolution error for negative zoom")
+	}
+	if _, err := tms.XYBounds(Tile{Zoom: -1}); err == nil {
+		t.Fatalf("expected xy bounds error for negative zoom")
+	}
+	if _, _, err := tms.TileForLonLat(0, 0, 999, nil); err == nil {
+		t.Fatalf("expected tile for lon/lat error for zoom out of range")
+	}
+}
+
+func TestTileMatrixSetTilesForGeometryInvalidRanges(t *testing.T) {
+	tms := loadWebMercatorQuad(t)
+	g := orb.Polygon{{{0, 0}, {1, 0}, {1, 1}, {0, 1}, {0, 0}}}
+
+	if _, err := tms.TilesForGeometry(g, -1, 1, 0); err == nil {
+		t.Fatalf("expected error for negative min zoom")
+	}
+	if _, err := tms.TilesForGeometry(g, 2, 1, 0); err == nil {
+		t.Fatalf("expected error for max < min zoom")
+	}
+	if _, err := tms.TilesForGeometry(g, 0, 99, 0); err == nil {
+		t.Fatalf("expected error for max zoom out of range")
+	}
+}
+
+func TestTileMatrixSetTilesForGeometryWithEPSG(t *testing.T) {
+	tms := loadWebMercatorQuad(t)
+	g := orb.Polygon{{{-1e6, -1e6}, {1e6, -1e6}, {1e6, 1e6}, {-1e6, 1e6}, {-1e6, -1e6}}}
+
+	tiles, err := tms.TilesForGeometryWithEPSG(g, "EPSG:3857", 0, 0, 0)
+	if err != nil {
+		t.Fatalf("expected projected tiles, got err: %v", err)
+	}
+	if len(tiles) == 0 {
+		t.Fatalf("expected tiles for EPSG projected geometry")
+	}
+	for _, ti := range tiles {
+		if ti.Zoom != 0 {
+			t.Fatalf("expected zoom 0 tile, got %d", ti.Zoom)
+		}
+	}
+}
