@@ -79,6 +79,12 @@ jobs:
       - name: Coverage
         run: go test -coverprofile=coverage.out $(go list ./... | grep -v '/examples' | grep -v '/tms')
 
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.out
+          disable_search: true
+
       - name: Upload coverage
         uses: actions/upload-artifact@v5
         with:

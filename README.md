@@ -1,6 +1,11 @@
 gocantile
 =========
 
+[![CI](https://github.com/hafenkran/gocantile/actions/workflows/ci.yml/badge.svg)](https://github.com/hafenkran/gocantile/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/hafenkran/gocantile)](https://goreportcard.com/report/github.com/hafenkran/gocantile)
+[![codecov](https://codecov.io/gh/hafenkran/gocantile/branch/main/graph/badge.svg)](https://codecov.io/gh/hafenkran/gocantile)
+[![Go Reference](https://pkg.go.dev/badge/github.com/hafenkran/gocantile.svg)](https://pkg.go.dev/github.com/hafenkran/gocantile)
+
 `gocantile` is a simple Go library for working with **OGC TileMatrixSet 2.0.0** ([spec](https://docs.ogc.org/is/17-083r4/17-083r4.html)), inspired by the excellent Python library [Morecantile](https://github.com/developmentseed/morecantile).
 
 It provides a lightweight, type-safe interface for loading TMS definitions, converting Lon/Lat to tiles, computing bounds, and performing multi-zoom coverage analysis. Optional PROJ integration enables on-the-fly coordinate projection.
