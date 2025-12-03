@@ -1,0 +1,24 @@
+# Build/test artifacts
+.gocache/
+bin/
+
+# Go toolchain
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# IDE/editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*.DS_Store
+
+# Node/npm (if quicktype is used via npx)
+node_modules/
+package-lock.json
+
+# Generated files (optional: keep generated Go in repo; adjust if you commit them)
+*.gen.go
