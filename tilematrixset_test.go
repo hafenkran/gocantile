@@ -3,6 +3,7 @@ package gocantile
 import (
 	"testing"
 
+	"github.com/hafenkran/gocantile/tms"
 	"github.com/paulmach/orb"
 )
 
@@ -269,5 +270,69 @@ func TestTileMatrixSetTilesForGeometryWithEPSG(t *testing.T) {
 		if ti.Zoom != 0 {
 			t.Fatalf("expected zoom 0 tile, got %d", ti.Zoom)
 		}
+	}
+}
+
+func TestTileMatrixSetZoomForIDNumericSorting(t *testing.T) {
+	set := tms.TileMatrixSet{
+		TileMatrices: []tms.TileMatrix{
+			{Id: "2", CellSize: 2},
+			{Id: "0", CellSize: 8},
+			{Id: "1", CellSize: 4},
+		},
+	}
+	tmsWrap := WrapTileMatrixSet(set)
+
+	z, err := tmsWrap.ZoomForID("0")
+	if err != nil {
+		t.Fatalf("zoom for id err: %v", err)
+	}
+	if z != 0 {
+		t.Fatalf("expected zoom 0 for id '0', got %d", z)
+	}
+	if tmsWrap.MaxZoom() != 2 {
+		t.Fatalf("expected max zoom 2, got %d", tmsWrap.MaxZoom())
+	}
+}
+
+func TestTileMatrixSetZoomForIDStringOrder(t *testing.T) {
+	set := tms.TileMatrixSet{
+		TileMatrices: []tms.TileMatrix{
+			{Id: "low", CellSize: 10},
+			{Id: "high", CellSize: 5},
+		},
+	}
+	tmsWrap := WrapTileMatrixSet(set)
+
+	zLow, err := tmsWrap.ZoomForID("low")
+	if err != nil {
+		t.Fatalf("zoom for id low err: %v", err)
+	}
+	if zLow != 0 {
+		t.Fatalf("expected zoom 0 for id 'low', got %d", zLow)
+	}
+	zHigh, err := tmsWrap.ZoomForID("high")
+	if err != nil {
+		t.Fatalf("zoom for id high err: %v", err)
+	}
+	if zHigh != 1 {
+		t.Fatalf("expected zoom 1 for id 'high', got %d", zHigh)
+	}
+}
+
+func TestTileMatrixSetDuplicateIDError(t *testing.T) {
+	set := tms.TileMatrixSet{
+		TileMatrices: []tms.TileMatrix{
+			{Id: "A", CellSize: 10},
+			{Id: "A", CellSize: 5},
+		},
+	}
+	tmsWrap := WrapTileMatrixSet(set)
+
+	if _, err := tmsWrap.ZoomForID("A"); err == nil {
+		t.Fatalf("expected error for duplicate ids")
+	}
+	if _, err := tmsWrap.ResolutionForZoom(0); err == nil {
+		t.Fatalf("expected resolution error due to duplicate ids")
 	}
 }
