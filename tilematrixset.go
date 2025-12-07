@@ -16,46 +16,86 @@ type TileMatrixSet struct {
 
 	once     sync.Once
 	matrices []tms.TileMatrix
+	idToZoom map[string]int
+	initErr  error
 }
 
 func WrapTileMatrixSet(set tms.TileMatrixSet) *TileMatrixSet {
 	return &TileMatrixSet{TileMatrixSet: set}
 }
 
-func (t *TileMatrixSet) sortedMatrices() []tms.TileMatrix {
+func (t *TileMatrixSet) ensureInit() error {
 	t.once.Do(func() {
+		if len(t.TileMatrices) == 0 {
+			t.matrices = nil
+			t.idToZoom = map[string]int{}
+			return
+		}
 		mats := make([]tms.TileMatrix, len(t.TileMatrices))
 		copy(mats, t.TileMatrices)
-		sort.SliceStable(mats, func(i, j int) bool {
-			zi, errI := parseZoom(mats[i].Id)
-			zj, errJ := parseZoom(mats[j].Id)
-			if errI == nil && errJ == nil {
-				return zi < zj
+
+		seen := make(map[string]struct{}, len(mats))
+		numericCount := 0
+		for i, tm := range mats {
+			if tm.Id == "" {
+				t.initErr = fmt.Errorf("tile matrix at index %d missing id", i)
+				return
 			}
-			return i < j
-		})
+			if _, ok := seen[tm.Id]; ok {
+				t.initErr = fmt.Errorf("duplicate tile matrix id %q", tm.Id)
+				return
+			}
+			seen[tm.Id] = struct{}{}
+			if _, err := parseZoom(tm.Id); err == nil {
+				numericCount++
+			}
+		}
+
+		if numericCount == len(mats) {
+			sort.SliceStable(mats, func(i, j int) bool {
+				zi, _ := parseZoom(mats[i].Id)
+				zj, _ := parseZoom(mats[j].Id)
+				return zi < zj
+			})
+		}
+
+		t.idToZoom = make(map[string]int, len(mats))
+		for i, tm := range mats {
+			t.idToZoom[tm.Id] = i
+		}
 		t.matrices = mats
 	})
-	return t.matrices
+	return t.initErr
+}
+
+func (t *TileMatrixSet) sortedMatrices() ([]tms.TileMatrix, error) {
+	if err := t.ensureInit(); err != nil {
+		return nil, err
+	}
+	return t.matrices, nil
 }
 
 func (t *TileMatrixSet) MinZoom() int {
-	if len(t.TileMatrices) == 0 {
+	mats, err := t.sortedMatrices()
+	if err != nil || len(mats) == 0 {
 		return 0
 	}
 	return 0
 }
 
 func (t *TileMatrixSet) MaxZoom() int {
-	mats := t.sortedMatrices()
-	if len(mats) == 0 {
+	mats, err := t.sortedMatrices()
+	if err != nil || len(mats) == 0 {
 		return 0
 	}
 	return len(mats) - 1
 }
 
 func (t *TileMatrixSet) ResolutionForZoom(z int) (float64, error) {
-	mats := t.sortedMatrices()
+	mats, err := t.sortedMatrices()
+	if err != nil {
+		return 0, err
+	}
 	if z < 0 || z >= len(mats) {
 		return 0, fmt.Errorf("zoom %d out of range", z)
 	}
@@ -63,7 +103,10 @@ func (t *TileMatrixSet) ResolutionForZoom(z int) (float64, error) {
 }
 
 func (t *TileMatrixSet) ZoomForResolution(res, tol float64) (int, error) {
-	mats := t.sortedMatrices()
+	mats, err := t.sortedMatrices()
+	if err != nil {
+		return 0, err
+	}
 	if len(mats) == 0 {
 		return 0, fmt.Errorf("no tile matrices")
 	}
@@ -88,7 +131,10 @@ func (t *TileMatrixSet) XYBBox() (grid.Bounds, error) {
 			return grid.Bounds{MinX: ll[0], MinY: ll[1], MaxX: ur[0], MaxY: ur[1]}, nil
 		}
 	}
-	mats := t.sortedMatrices()
+	mats, err := t.sortedMatrices()
+	if err != nil {
+		return grid.Bounds{}, err
+	}
 	if len(mats) == 0 {
 		return grid.Bounds{}, fmt.Errorf("no tile matrices")
 	}
@@ -115,7 +161,10 @@ func (t *TileMatrixSet) XYBBox() (grid.Bounds, error) {
 
 // XYBounds returns the bounds in the matrix CRS of the given tile.
 func (t *TileMatrixSet) XYBounds(tile grid.Tile) (grid.Bounds, error) {
-	mats := t.sortedMatrices()
+	mats, err := t.sortedMatrices()
+	if err != nil {
+		return grid.Bounds{}, err
+	}
 	if tile.Zoom < 0 || tile.Zoom >= len(mats) {
 		return grid.Bounds{}, fmt.Errorf("zoom %d out of range", tile.Zoom)
 	}
@@ -133,7 +182,10 @@ func (t *TileMatrixSet) Bounds(tile grid.Tile, p grid.Projector) (grid.Bounds, e
 		}
 		p = pp
 	}
-	mats := t.sortedMatrices()
+	mats, err := t.sortedMatrices()
+	if err != nil {
+		return grid.Bounds{}, err
+	}
 	if tile.Zoom < 0 || tile.Zoom >= len(mats) {
 		return grid.Bounds{}, fmt.Errorf("zoom %d out of range", tile.Zoom)
 	}
@@ -151,7 +203,10 @@ func (t *TileMatrixSet) TileForLonLat(lon, lat float64, zoom int, p grid.Project
 		}
 		p = pp
 	}
-	mats := t.sortedMatrices()
+	mats, err := t.sortedMatrices()
+	if err != nil {
+		return grid.Tile{}, false, err
+	}
 	if zoom < 0 || zoom >= len(mats) {
 		return grid.Tile{}, false, fmt.Errorf("zoom %d out of range", zoom)
 	}
@@ -170,7 +225,10 @@ func (t *TileMatrixSet) TilesForGeometry(g orb.Geometry, minZoom, maxZoom int, b
 	if minZoom < 0 || maxZoom < minZoom {
 		return nil, fmt.Errorf("invalid zoom range min=%d max=%d", minZoom, maxZoom)
 	}
-	mats := t.sortedMatrices()
+	mats, err := t.sortedMatrices()
+	if err != nil {
+		return nil, err
+	}
 	if maxZoom >= len(mats) {
 		return nil, fmt.Errorf("max zoom %d out of range", maxZoom)
 	}
@@ -219,4 +277,32 @@ func parseZoom(id string) (int, error) {
 	var z int
 	_, err := fmt.Sscanf(id, "%d", &z)
 	return z, err
+}
+
+// ZoomForID returns the zero-based zoom index for the given TileMatrix ID.
+func (t *TileMatrixSet) ZoomForID(id string) (int, error) {
+	if err := t.ensureInit(); err != nil {
+		return 0, err
+	}
+	z, ok := t.idToZoom[id]
+	if !ok {
+		return 0, fmt.Errorf("tile matrix id %q not found", id)
+	}
+	return z, nil
+}
+
+// TileMatrixForID returns the TileMatrix for the given ID.
+func (t *TileMatrixSet) TileMatrixForID(id string) (tms.TileMatrix, error) {
+	mats, err := t.sortedMatrices()
+	if err != nil {
+		return tms.TileMatrix{}, err
+	}
+	z, err := t.ZoomForID(id)
+	if err != nil {
+		return tms.TileMatrix{}, err
+	}
+	if z < 0 || z >= len(mats) {
+		return tms.TileMatrix{}, fmt.Errorf("zoom %d out of range for id %q", z, id)
+	}
+	return mats[z], nil
 }
