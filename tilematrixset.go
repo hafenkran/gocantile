@@ -57,6 +57,13 @@ func (t *TileMatrixSet) ensureInit() error {
 				zj, _ := parseZoom(mats[j].Id)
 				return zi < zj
 			})
+			for i, tm := range mats {
+				zi, _ := parseZoom(tm.Id)
+				if zi != i {
+					t.initErr = fmt.Errorf("numeric tile matrix id %q does not match zoom index %d", tm.Id, i)
+					return
+				}
+			}
 		}
 
 		t.idToZoom = make(map[string]int, len(mats))
@@ -100,6 +107,15 @@ func (t *TileMatrixSet) ResolutionForZoom(z int) (float64, error) {
 		return 0, fmt.Errorf("zoom %d out of range", z)
 	}
 	return mats[z].CellSize, nil
+}
+
+// ResolutionForID returns the cell size for the TileMatrix with the given ID.
+func (t *TileMatrixSet) ResolutionForID(id string) (float64, error) {
+	zoom, err := t.ZoomForID(id)
+	if err != nil {
+		return 0, err
+	}
+	return t.ResolutionForZoom(zoom)
 }
 
 func (t *TileMatrixSet) ZoomForResolution(res, tol float64) (int, error) {
@@ -172,6 +188,15 @@ func (t *TileMatrixSet) XYBounds(tile grid.Tile) (grid.Bounds, error) {
 	return adapter.BoundsForTile(tile.TileIndex)
 }
 
+// XYBoundsForID returns tile bounds in the matrix CRS for a TileMatrix ID.
+func (t *TileMatrixSet) XYBoundsForID(tile grid.TileIndex, id string) (grid.Bounds, error) {
+	zoom, err := t.ZoomForID(id)
+	if err != nil {
+		return grid.Bounds{}, err
+	}
+	return t.XYBounds(grid.Tile{Zoom: zoom, TileIndex: tile})
+}
+
 // Bounds returns the lon/lat bounds (degrees) of the given tile. If p is nil,
 // a projector is created from the TMS CRS.
 func (t *TileMatrixSet) Bounds(tile grid.Tile, p grid.Projector) (grid.Bounds, error) {
@@ -191,6 +216,15 @@ func (t *TileMatrixSet) Bounds(tile grid.Tile, p grid.Projector) (grid.Bounds, e
 	}
 	adapter := grid.TileMatrix{TM: mats[tile.Zoom]}
 	return adapter.BoundsForTileLonLat(tile.TileIndex, p)
+}
+
+// BoundsForID returns lon/lat bounds for a TileMatrix ID.
+func (t *TileMatrixSet) BoundsForID(tile grid.TileIndex, id string, p grid.Projector) (grid.Bounds, error) {
+	zoom, err := t.ZoomForID(id)
+	if err != nil {
+		return grid.Bounds{}, err
+	}
+	return t.Bounds(grid.Tile{Zoom: zoom, TileIndex: tile}, p)
 }
 
 // TileForLonLat returns the tile (z/x/y) for the given lon/lat at the specified
@@ -216,6 +250,15 @@ func (t *TileMatrixSet) TileForLonLat(lon, lat float64, zoom int, p grid.Project
 		return grid.Tile{}, false, nil
 	}
 	return grid.Tile{Zoom: zoom, TileIndex: idx}, true, nil
+}
+
+// TileForLonLatID resolves the zoom from the TileMatrix ID and returns the tile.
+func (t *TileMatrixSet) TileForLonLatID(lon, lat float64, id string, p grid.Projector) (grid.Tile, bool, error) {
+	zoom, err := t.ZoomForID(id)
+	if err != nil {
+		return grid.Tile{}, false, err
+	}
+	return t.TileForLonLat(lon, lat, zoom, p)
 }
 
 // TilesForGeometry returns tiles covering the geometry across zoom levels

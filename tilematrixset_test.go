@@ -336,3 +336,51 @@ func TestTileMatrixSetDuplicateIDError(t *testing.T) {
 		t.Fatalf("expected resolution error due to duplicate ids")
 	}
 }
+
+func TestTileMatrixSetNumericGapError(t *testing.T) {
+	set := tms.TileMatrixSet{
+		TileMatrices: []tms.TileMatrix{
+			{Id: "0", CellSize: 10},
+			{Id: "2", CellSize: 5},
+		},
+	}
+	tmsWrap := WrapTileMatrixSet(set)
+
+	if _, err := tmsWrap.ZoomForID("0"); err == nil {
+		t.Fatalf("expected error for numeric gap in ids")
+	}
+}
+
+func TestTileMatrixSetBoundsAndTileForLonLatID(t *testing.T) {
+	set := tms.TileMatrixSet{
+		TileMatrices: []tms.TileMatrix{
+			{
+				Id:            "A",
+				CellSize:      1,
+				TileWidth:     1,
+				TileHeight:    1,
+				MatrixWidth:   1,
+				MatrixHeight:  1,
+				PointOfOrigin: []float64{0, 0},
+			},
+		},
+		Crs: "EPSG:3857",
+	}
+	wrap := WrapTileMatrixSet(set)
+
+	b, err := wrap.XYBoundsForID(TileIndex{Col: 0, Row: 0}, "A")
+	if err != nil {
+		t.Fatalf("xy bounds id err: %v", err)
+	}
+	if b.MinX != 0 || b.MaxX != 1 {
+		t.Fatalf("unexpected bounds: %+v", b)
+	}
+
+	tile, ok, err := wrap.TileForLonLatID(0, 0, "A", nil)
+	if err != nil {
+		t.Fatalf("tile for lonlat id err: %v", err)
+	}
+	if !ok || tile.Zoom != 0 || tile.Col != 0 || tile.Row != 0 {
+		t.Fatalf("unexpected tile: %+v", tile)
+	}
+}
