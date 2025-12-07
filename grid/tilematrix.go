@@ -237,10 +237,10 @@ func (a TileMatrix) TilesForBounds(b Bounds) []TileIndex {
 	return tiles
 }
 
-// TilesForGeometry returns tiles intersecting the geometry's bounding box,
-// clipped to the matrix extent. Intersection is bounding-box based; for precise
-// clipping you can post-filter with your own geometry tests.
-func (a TileMatrix) TilesForGeometry(g orb.Geometry) []TileIndex {
+// TilesForGeometry returns all tiles that intersect the provided geometry
+// in the matrix CRS. An optional buffer (in CRS units) can be provided to
+// expand the geometry bounds before calculating tiles.
+func (a TileMatrix) TilesForGeometry(g orb.Geometry, buffer float64) []TileIndex {
 	bound := g.Bound()
 	b := Bounds{
 		MinX: bound.Min[0],
@@ -248,13 +248,19 @@ func (a TileMatrix) TilesForGeometry(g orb.Geometry) []TileIndex {
 		MaxX: bound.Max[0],
 		MaxY: bound.Max[1],
 	}
+	if buffer != 0 {
+		b.MinX -= buffer
+		b.MinY -= buffer
+		b.MaxX += buffer
+		b.MaxY += buffer
+	}
 	tr, ok := a.TileRangeForBounds(b)
 	if !ok {
 		return nil
 	}
 	geomBound := orb.Bound{
-		Min: orb.Point{bound.Min[0], bound.Min[1]},
-		Max: orb.Point{bound.Max[0], bound.Max[1]},
+		Min: orb.Point{b.MinX, b.MinY},
+		Max: orb.Point{b.MaxX, b.MaxY},
 	}
 	var tiles []TileIndex
 	for r := tr.MinRow; r <= tr.MaxRow; r++ {

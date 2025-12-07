@@ -232,26 +232,11 @@ func (t *TileMatrixSet) TilesForGeometry(g orb.Geometry, minZoom, maxZoom int, b
 	if maxZoom >= len(mats) {
 		return nil, fmt.Errorf("max zoom %d out of range", maxZoom)
 	}
-	bound := g.Bound()
-	if buffer != 0 {
-		bound.Min[0] -= buffer
-		bound.Min[1] -= buffer
-		bound.Max[0] += buffer
-		bound.Max[1] += buffer
-		// Replace geometry with buffered bbox polygon for precise clipping at tile level.
-		g = orb.Polygon{{
-			{bound.Min[0], bound.Min[1]},
-			{bound.Max[0], bound.Min[1]},
-			{bound.Max[0], bound.Max[1]},
-			{bound.Min[0], bound.Max[1]},
-			{bound.Min[0], bound.Min[1]},
-		}}
-	}
 
 	var tiles grid.TilesList
 	for z := minZoom; z <= maxZoom; z++ {
 		adapter := grid.TileMatrix{TM: mats[z]}
-		rangeTiles := adapter.TilesForGeometry(g)
+		rangeTiles := adapter.TilesForGeometry(g, buffer)
 		for _, idx := range rangeTiles {
 			tiles = append(tiles, grid.Tile{Zoom: z, TileIndex: idx})
 		}

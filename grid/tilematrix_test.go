@@ -182,7 +182,7 @@ func TestTilesForGeometry(t *testing.T) {
 			{1000, 47000},
 		},
 	}
-	tiles := adapter.TilesForGeometry(poly)
+	tiles := adapter.TilesForGeometry(poly, 0)
 	if len(tiles) != 1 {
 		t.Fatalf("expected 1 tile, got %d", len(tiles))
 	}
@@ -200,7 +200,7 @@ func TestTilesForGeometry(t *testing.T) {
 			{23000, 47000},
 		},
 	}
-	tiles = adapter.TilesForGeometry(poly2)
+	tiles = adapter.TilesForGeometry(poly2, 0)
 	if len(tiles) != 2 {
 		t.Fatalf("expected 2 tiles, got %d", len(tiles))
 	}
@@ -225,7 +225,7 @@ func TestTilesForGeometryWebMercator(t *testing.T) {
 			{1000, -1000},
 		},
 	}
-	tiles := adapter.TilesForGeometry(poly)
+	tiles := adapter.TilesForGeometry(poly, 0)
 	expected := map[TileIndex]struct{}{
 		{Col: 1, Row: 1}: {},
 	}
@@ -272,7 +272,7 @@ func TestTilesForGeometryWebMercatorManyTiles(t *testing.T) {
 		t.Fatalf("expected tile range for bounds")
 	}
 
-	tiles := adapter.TilesForGeometry(poly)
+	tiles := adapter.TilesForGeometry(poly, 0)
 	if len(tiles) != expectedCount {
 		t.Fatalf("expected %d tiles (range %+v), got %d", expectedCount, tr, len(tiles))
 	}
